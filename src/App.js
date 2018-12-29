@@ -59,6 +59,12 @@ class App extends Component {
     this.setState({ moves: updatedMoves });
   };
 
+  handlePlayAgain = e => {
+    e.preventDefault();
+
+    this.setState({ moves: {} });
+  }
+
   render() {
     const {
       dimension,
@@ -68,7 +74,8 @@ class App extends Component {
     const {
       setDimension,
       setWinLength,
-      handleMove
+      handleMove,
+      handlePlayAgain
     } = this;
 
     return (
@@ -88,6 +95,7 @@ class App extends Component {
           moves={moves}
           winLength={winLength}
           handleMove={handleMove}
+          handlePlayAgain={handlePlayAgain}
         />
       </main>
     );
@@ -96,7 +104,7 @@ class App extends Component {
 
 export default App;
 
-const Grid = ({ dimension, moves, winLength, handleMove }) => {
+const Grid = ({ dimension, moves, winLength, handleMove, handlePlayAgain }) => {
   const dimensionArray = Array.from(Array(dimension).keys());
   const winningMoves = getWinningMoves({ dimension, moves, winLength });
   const tied = !winningMoves && countMoves(moves) === dimension * dimension;
@@ -112,7 +120,7 @@ const Grid = ({ dimension, moves, winLength, handleMove }) => {
         : <td
           className="cell"
           key={`${xCoord},${yCoord}`}
-          onClick={handleMove({ xCoord, yCoord })}
+          onClick={!winningMoves && !tied ? handleMove({ xCoord, yCoord }) : () => { }}
         />
     )
   );
@@ -128,7 +136,7 @@ const Grid = ({ dimension, moves, winLength, handleMove }) => {
       </table>
       {
         winningMoves
-          ? <WinMessage winningMoves={winningMoves} />
+          ? <WinMessage winningMoves={winningMoves} playAgainHandler={handlePlayAgain} />
           : null
       }
       {
@@ -140,7 +148,7 @@ const Grid = ({ dimension, moves, winLength, handleMove }) => {
   );
 };
 
-const WinMessage = ({ winningMoves }) => {
+const WinMessage = ({ winningMoves, playAgainHandler }) => {
   const winningRowKeys = Object.keys(winningMoves);
   const firstWinningRowKey = winningRowKeys[0];
   const firstWinningRow = winningMoves[firstWinningRowKey];
@@ -149,9 +157,14 @@ const WinMessage = ({ winningMoves }) => {
   const firstWinningMove = winningMoves[firstWinningRowKey][firstWinningColKey];
 
   return (
-    <p>
-      <strong>{firstWinningMove}</strong> wins.
-    </p>
+    <div>
+      <p>
+        <strong>{firstWinningMove}</strong> wins.
+      </p>
+      <form className="play-again" onSubmit={playAgainHandler}>
+        <button type="submit">Play Again</button>
+      </form>
+    </div>
   );
 };
 
@@ -230,155 +243,6 @@ const getVerticalWin = ({ moves, winLength }) => {
   }, false);
 };
 
-const getDiagonalWin = ({ dimension, moves, winLength }) => {
-  const flatMoves = flattenMoves(moves); // [{ rowKey: 0, colKey: 1, move: 'x' || 'o' }]
-  const winningMoveSequences = flatMoves.map(flatMove =>
-    getDiagonalWinSequence({ dimension, flatMove, moves, winLength })
-  ).filter(m => m !== null);
-
-  if (winningMoveSequences.length > 0) {
-    return winningMoveSequences[0];
-  }
-
-  return false;
-};
-
-const getDiagonalWinSequence = ({ dimension, flatMove, moves, winLength }) => {
-  // create a winLength sequence starting from the move's row and col going south east
-  // do the same except going north west
-  // concat the two together and see if there are any winLength consecutive moves in the seq
-  // repeat for north east / south west
-  const { rowKey, colKey } = flatMove;
-  const getDiagonalSeq = direction => {
-    const getNextKeys = pos => {
-      switch (direction) {
-        case "southEast":
-          return [rowKey + pos, colKey + pos];
-        case "northWest":
-          return [rowKey - pos, colKey - pos];
-        case "northEast":
-          return [rowKey - pos, colKey + pos];
-        case "southWest":
-          return [rowKey + pos, colKey - pos];
-        default:
-          return [null, null];
-      }
-    };
-    const winLengthArray = Array.from(Array(winLength).keys()); // [ 0, 1, ... winLength-1 ]
-
-    return winLengthArray.reduce((acc, pos) => {
-      const [nextRowKey, nextColKey] = getNextKeys(pos);
-
-      if (
-        (0 <= nextRowKey && nextRowKey < dimension) &&
-        (0 <= nextColKey && nextColKey < dimension)
-      ) {
-        const move = moves[nextRowKey] && moves[nextRowKey][nextColKey]
-          ? moves[nextRowKey][nextColKey]
-          : null;
-
-        return acc.concat([{
-          rowKey: nextRowKey,
-          colKey: nextColKey,
-          move
-        }]);
-      }
-
-      return acc;
-    }, []);
-  };
-  const getWinningSequence = move => flatMoveSequence => {
-    const moveFlatMoves = flatMoveSequence.map(flatMove => flatMove.move === move ? flatMove : null);
-    const moveSequences = moveFlatMoves.reduce((acc, moveFlatMove, i) => {
-      if (moveFlatMove !== null) {
-        if (acc.length === 0) {
-          return [[moveFlatMove]];
-        }
-
-        if (moveFlatMoves[i - 1] !== null) {
-          const updatedAcc = [...acc];
-
-          updatedAcc[acc.length - 1] = acc[acc.length - 1].concat([moveFlatMove]);
-
-          return updatedAcc;
-        }
-
-        return acc.concat([[moveFlatMove]]);
-      }
-
-      return acc;
-    }, []);
-    const winningSequences = moveSequences.filter(seq => seq.length >= winLength);
-
-    if (winningSequences.length > 0) {
-      const firstWinningSequence = winningSequences[0];
-
-      return firstWinningSequence;
-    }
-
-    return null;
-  };
-  const southEastSeq = getDiagonalSeq("southEast");
-  const northWestSeq = getDiagonalSeq("northWest");
-  const northEastSeq = getDiagonalSeq("northEast");
-  const southWestSeq = getDiagonalSeq("southWest");
-  const northWestToSouthEastSeq = northWestSeq.reverse().concat(southEastSeq.slice(1, winLength));
-  const southWestToNorthEastSeq = southWestSeq.reverse().concat(northEastSeq.slice(1, winLength));
-  const wins = [
-    getWinningSequence('x')(northWestToSouthEastSeq),
-    getWinningSequence('x')(southWestToNorthEastSeq),
-    getWinningSequence('o')(northWestToSouthEastSeq),
-    getWinningSequence('o')(southWestToNorthEastSeq)
-  ].filter(w => w !== null);
-
-  if (wins.length > 0) {
-    const win = wins[0];
-
-    return unflattenMoves(win);
-  }
-
-  return null;
-};
-
-const flattenMoves = moves => {
-  const rowKeys = Object.keys(moves).map(Number);
-
-  return rowKeys.reduce((acc, rowKey) => {
-    const row = moves[rowKey];
-    const colKeys = Object.keys(row).map(Number);
-    const colMoves = colKeys.reduce((cAcc, colKey) =>
-      acc.concat({
-        rowKey,
-        colKey,
-        move: row[colKey]
-      })
-      , []);
-
-    return acc.concat(colMoves);
-  }, []);
-};
-
-const unflattenMoves = flatMoves => flatMoves.reduce((acc, flatMove) => {
-  const { rowKey, colKey, move } = flatMove;
-
-  if (typeof acc[rowKey] === "undefined") {
-    return {
-      ...acc,
-      [rowKey]: {
-        [colKey]: move
-      }
-    };
-  }
-
-  return {
-    ...acc,
-    [rowKey]: {
-      ...acc[rowKey],
-      [colKey]: move
-    }
-  };
-}, {});
-
 const formatByColumn = moves => {
   const rowKeys = Object.keys(moves).map(Number);
   const columnKeys = Object.values(moves).reduce((acc, col) =>
@@ -446,3 +310,166 @@ const getWinSequence = winLength => arr => {
     return acc;
   }, false);
 };
+
+const getDiagonalWin = ({ dimension, moves, winLength }) => {
+  // for each move that has been made, draw an "X" of diagonals w/ that move as the center
+  // each diagonal extends winLength in each direction
+  // check to see if there are winLength consecutive moves within that area
+  const flatMoves = flattenMoves(moves); // [{ rowKey: 0, colKey: 1, move: 'x' || 'o' }]
+  const winningMoveSequences = flatMoves.map(flatMove =>
+    getDiagonalWinSequence({ dimension, flatMove, moves, winLength })
+  ).filter(seq => seq !== null);
+
+  if (winningMoveSequences.length > 0) {
+    return winningMoveSequences[0];
+  }
+
+  return false;
+};
+
+const getDiagonalWinSequence = ({ dimension, flatMove, moves, winLength }) => {
+  // create a winLength sequence starting from the move's row and col going south east
+  // do the same except going north west
+  // concat the two together and see if there are any winLength consecutive moves in the seq
+  // repeat for north east / south west
+  const originRowKey = flatMove.rowKey;
+  const originColKey = flatMove.colKey;
+  const moveType = flatMove.move; // 'x' || 'o'
+
+  // getDiagonalSeq is a function that takes a direction and
+  // returns a one dimensional array sequence representing winLength grid positions extending in that direction
+  // [ { originRowKey: 0, originColKey: 1, move: 'x' || 'o' || null } ]
+  const getDiagonalSeq = direction => {
+    const getNextKeys = pos => {
+      switch (direction) {
+        case "southEast":
+          return [originRowKey + pos, originColKey + pos];
+        case "northWest":
+          return [originRowKey - pos, originColKey - pos];
+        case "northEast":
+          return [originRowKey - pos, originColKey + pos];
+        case "southWest":
+          return [originRowKey + pos, originColKey - pos];
+        default:
+          return [null, null];
+      }
+    };
+    const winLengthArray = Array.from(Array(winLength).keys()); // [ 0, 1, ... winLength-1 ]
+
+    return winLengthArray.reduce((acc, pos) => {
+      const [nextRowKey, nextColKey] = getNextKeys(pos);
+
+      if (
+        (0 <= nextRowKey && nextRowKey < dimension) &&
+        (0 <= nextColKey && nextColKey < dimension)
+      ) {
+        const move = moves[nextRowKey] && moves[nextRowKey][nextColKey]
+          ? moves[nextRowKey][nextColKey]
+          : null;
+
+        return acc.concat([{
+          rowKey: nextRowKey,
+          colKey: nextColKey,
+          move
+        }]);
+      }
+
+      return acc;
+    }, []);
+  };
+
+  const getWinningSequence = flatMoveSequence => {
+    // get a list of all consecutive segments in the sequence
+    const moveSegments = flatMoveSequence.reduce((acc, fMove, i) => {
+      if (fMove.move === moveType) {
+        // if we haven't started accumulating sequences yet
+        if (acc.length === 0) {
+          return [[fMove]];
+        }
+
+        if (flatMoveSequence[i - 1].move === moveType) {
+          // if we have accumulated sequences and the last move matches as well
+          // then add this move to the last sequence that was accumulated
+          const updatedAcc = [...acc];
+
+          updatedAcc[acc.length - 1] = acc[acc.length - 1].concat([fMove]);
+
+          return updatedAcc;
+        }
+
+        return acc.concat([[fMove]]);
+      }
+
+      return acc;
+    }, []);
+    const winningSequences = moveSegments.filter(segment => segment.length >= winLength);
+
+    if (winningSequences.length > 0) {
+      const firstWinningSequence = winningSequences[0];
+
+      return firstWinningSequence;
+    }
+
+    return null;
+  };
+
+  const southEastSeq = getDiagonalSeq("southEast");
+  const northWestSeq = getDiagonalSeq("northWest");
+  const northEastSeq = getDiagonalSeq("northEast");
+  const southWestSeq = getDiagonalSeq("southWest");
+
+  const northWestToSouthEastSeq = northWestSeq.reverse().concat(southEastSeq.slice(1, winLength));
+  const southWestToNorthEastSeq = southWestSeq.reverse().concat(northEastSeq.slice(1, winLength));
+
+  const wins = [
+    getWinningSequence(northWestToSouthEastSeq),
+    getWinningSequence(southWestToNorthEastSeq)
+  ].filter(win => win !== null);
+
+  if (wins.length > 0) {
+    const win = wins[0];
+
+    return unflattenMoves(win);
+  }
+
+  return null;
+};
+
+const flattenMoves = moves => {
+  const rowKeys = Object.keys(moves).map(Number);
+
+  return rowKeys.reduce((acc, rowKey) => {
+    const row = moves[rowKey];
+    const colKeys = Object.keys(row).map(Number);
+    const colMoves = colKeys.reduce((cAcc, colKey) =>
+      acc.concat({
+        rowKey,
+        colKey,
+        move: row[colKey]
+      })
+      , []);
+
+    return acc.concat(colMoves);
+  }, []);
+};
+
+const unflattenMoves = flatMoves => flatMoves.reduce((acc, flatMove) => {
+  const { rowKey, colKey, move } = flatMove;
+
+  if (typeof acc[rowKey] === "undefined") {
+    return {
+      ...acc,
+      [rowKey]: {
+        [colKey]: move
+      }
+    };
+  }
+
+  return {
+    ...acc,
+    [rowKey]: {
+      ...acc[rowKey],
+      [colKey]: move
+    }
+  };
+}, {});
