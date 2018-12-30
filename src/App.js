@@ -190,7 +190,7 @@ const getWinningMoves = ({ dimension, moves, winLength }) =>
   getDiagonalWin({ dimension, moves, winLength });
 
 const getHorizontalWin = ({ moves, winLength }) => {
-  const rowIndexes = Object.keys(moves).map(Number); // indexes of rows that have moves
+  const rowIndexes = Object.keys(moves); // indexes of rows that have moves
   const rows = Object.values(moves); // Array of maps { [colIndex]: 'x' || 'o' }
   const rowsWithIndexes = rows.map((r, i) => ({ ...r, index: rowIndexes[i] }));
 
@@ -219,7 +219,7 @@ const getHorizontalWin = ({ moves, winLength }) => {
 
 const getVerticalWin = ({ moves, winLength }) => {
   const movesByCol = formatByColumn(moves);
-  const colIndexes = Object.keys(movesByCol).map(Number);
+  const colIndexes = Object.keys(movesByCol);
   const cols = Object.values(movesByCol);
   const colsWithIndexes = cols.map((c, i) => ({ ...c, index: colIndexes[i] }));
 
@@ -250,9 +250,9 @@ const getVerticalWin = ({ moves, winLength }) => {
 };
 
 const formatByColumn = moves => {
-  const rowKeys = Object.keys(moves).map(Number);
+  const rowKeys = Object.keys(moves);
   const columnKeys = Object.values(moves).reduce((acc, col) =>
-    acc.concat(Object.keys(col).map(Number))
+    acc.concat(Object.keys(col))
     , []);
   const movesByColumn = Array.from(new Set(columnKeys))
     .reduce((acc, colKey) => ({
