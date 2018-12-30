@@ -300,8 +300,11 @@ const getWinSequence = winLength => arr => {
   const sorted = arr.slice().sort((a, b) => a - b);
 
   return sorted.reduce((acc, value, i) => {
-    const nextLenSeq = sorted.slice(i, winLength);
+    const nextLenSeq = sorted.slice(i, i + winLength);
     const match = Array.from(Array(winLength).keys()).map(index => value + index);
+
+    console.log(nextLenSeq)
+    console.log(match)
 
     if (JSON.stringify(nextLenSeq) === JSON.stringify(match)) {
       return nextLenSeq;
