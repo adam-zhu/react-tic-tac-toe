@@ -272,12 +272,12 @@ const formatByColumn = moves => {
 const rowWin = ({ row, winLength }) => {
   const rowMovesByType = movesByType(row);
 
-  const winningXSequence = getWinSequence(winLength)(rowMovesByType['x']);
+  const winningXSequence = getWinSequence(winLength, rowMovesByType['x']);
   if (winningXSequence) {
     return winningXSequence;
   }
 
-  const winningOSequence = getWinSequence(winLength)(rowMovesByType['o']);
+  const winningOSequence = getWinSequence(winLength, rowMovesByType['o']);
   if (winningOSequence) {
     return winningOSequence;
   }
@@ -297,7 +297,7 @@ const movesByType = row => Object.keys(row)
     };
   }, { x: [], o: [] });
 
-const getWinSequence = winLength => arr => {
+const getWinSequence = (winLength, arr) => {
   return arr.sort((a, b) => a - b).reduce((acc, value, i) => {
     const nextLenSeq = arr.slice(i, i + winLength);
     const match = Array.from(Array(winLength).keys()).map(index => value + index);
