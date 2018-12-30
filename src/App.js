@@ -248,22 +248,24 @@ const formatByColumn = moves => {
   const columnKeys = Object.values(moves).reduce((acc, col) =>
     acc.concat(Object.keys(col).map(Number))
     , []);
-  const movesByColumn = columnKeys.reduce((acc, colKey) => ({
-    ...acc,
-    [colKey]: rowKeys.reduce((rAcc, rowKey) => {
-      const row = moves[rowKey];
-      const move = row[colKey];
+  const movesByColumn = Array.from(new Set(columnKeys))
+    .sort((a, b) => a - b)
+    .reduce((acc, colKey) => ({
+      ...acc,
+      [colKey]: rowKeys.reduce((rAcc, rowKey) => {
+        const row = moves[rowKey];
+        const move = row[colKey];
 
-      if (typeof move !== "undefined") {
-        return {
-          ...rAcc,
-          [rowKey]: move
-        };
-      }
+        if (typeof move !== "undefined") {
+          return {
+            ...rAcc,
+            [rowKey]: move
+          };
+        }
 
-      return rAcc;
-    }, {})
-  }), {});
+        return rAcc;
+      }, {})
+    }), {});
 
   return movesByColumn;
 };
@@ -296,17 +298,28 @@ const movesByType = row => Object.keys(row)
     };
   }, { x: [], o: [] });
 
-const getWinSequence = winLength => arr => {
-  const sorted = arr.slice().sort((a, b) => a - b);
+const arrayEquals = (a, b) => {
+  const aLen = a.length;
 
-  return sorted.reduce((acc, value, i) => {
-    const nextLenSeq = sorted.slice(i, i + winLength);
+  if (aLen !== b.length) {
+    return false;
+  }
+
+  for (let i = 0; i < aLen; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const getWinSequence = winLength => arr => {
+  return arr.reduce((acc, value, i) => {
+    const nextLenSeq = arr.slice(i, i + winLength);
     const match = Array.from(Array(winLength).keys()).map(index => value + index);
 
-    console.log(nextLenSeq)
-    console.log(match)
-
-    if (JSON.stringify(nextLenSeq) === JSON.stringify(match)) {
+    if (arrayEquals(nextLenSeq, match)) {
       return nextLenSeq;
     }
 
@@ -393,7 +406,7 @@ const getDiagonalWinSequence = ({ dimension, flatMove, moves, winLength }) => {
         if (flatMoveSequence[i - 1].move === moveType) {
           // if we have accumulated sequences and the last move matches as well
           // then add this move to the last sequence that was accumulated
-          const updatedAcc = [...acc];
+          const updatedAcc = acc.slice();
 
           updatedAcc[acc.length - 1] = acc[acc.length - 1].concat([fMove]);
 
