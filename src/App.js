@@ -77,6 +77,8 @@ class App extends Component {
       handleMove,
       handlePlayAgain
     } = this;
+    const winningMoves = getWinningMoves({ dimension, moves, winLength });
+    const tied = !winningMoves && countMoves(moves) === dimension * dimension;
 
     return (
       <main>
@@ -93,10 +95,17 @@ class App extends Component {
         <Grid
           dimension={dimension}
           moves={moves}
-          winLength={winLength}
+          winningMoves={winningMoves}
+          tied={tied}
           handleMove={handleMove}
-          handlePlayAgain={handlePlayAgain}
         />
+        {
+          winningMoves
+            ? <WinMessage winningMoves={winningMoves} playAgainHandler={handlePlayAgain} />
+            : tied
+              ? <TiedMessage playAgainHandler={handlePlayAgain} />
+              : null
+        }
       </main>
     );
   }
@@ -104,10 +113,14 @@ class App extends Component {
 
 export default App;
 
-const Grid = ({ dimension, moves, winLength, handleMove, handlePlayAgain }) => {
+const Grid = ({
+  dimension,
+  moves,
+  winningMoves,
+  tied,
+  handleMove
+}) => {
   const dimensionArray = Array.from(Array(dimension).keys());
-  const winningMoves = getWinningMoves({ dimension, moves, winLength });
-  const tied = !winningMoves && countMoves(moves) === dimension * dimension;
   const gridMatrix = dimensionArray.map(xCoord =>
     dimensionArray.map(yCoord =>
       moves[xCoord] && moves[xCoord][yCoord]
@@ -126,25 +139,13 @@ const Grid = ({ dimension, moves, winLength, handleMove, handlePlayAgain }) => {
   );
 
   return (
-    <div className="grid-container">
-      <table className={`grid ${tied ? "tied" : ""}`}>
-        <tbody>
-          {
-            gridMatrix.map((row, i) => <tr className="row" key={i}>{row}</tr>)
-          }
-        </tbody>
-      </table>
-      {
-        winningMoves
-          ? <WinMessage winningMoves={winningMoves} playAgainHandler={handlePlayAgain} />
-          : null
-      }
-      {
-        tied
-          ? <TiedMessage />
-          : null
-      }
-    </div>
+    <table className={`grid ${tied ? "tied" : ""}`}>
+      <tbody>
+        {
+          gridMatrix.map((row, i) => <tr className="row" key={i}>{row}</tr>)
+        }
+      </tbody>
+    </table>
   );
 };
 
@@ -168,10 +169,15 @@ const WinMessage = ({ winningMoves, playAgainHandler }) => {
   );
 };
 
-const TiedMessage = () =>
-  <p>
-    <strong>Draw.</strong>
-  </p>;
+const TiedMessage = ({ playAgainHandler }) =>
+  <div>
+    <p>
+      <strong>Draw.</strong>
+    </p>
+    <form className="play-again" onSubmit={playAgainHandler}>
+      <button type="submit">Play Again</button>
+    </form>
+  </div>;
 
 const countMoves = moves =>
   Object.values(moves).reduce((ct, row) =>
@@ -298,6 +304,10 @@ const movesByType = row => Object.keys(row)
   }, { x: [], o: [] });
 
 const getWinSequence = (winLength, arr) => {
+  if (arr.length < winLength) {
+    return false;
+  }
+
   return arr.sort((a, b) => a - b).reduce((acc, value, i) => {
     const nextLenSeq = arr.slice(i, i + winLength);
     const match = Array.from(Array(winLength).keys()).map(index => value + index);
@@ -336,7 +346,9 @@ const getDiagonalWin = ({ dimension, moves, winLength }) => {
   ).filter(seq => seq !== null);
 
   if (winningMoveSequences.length > 0) {
-    return winningMoveSequences[0];
+    const formattedWin = unflattenMoves(winningMoveSequences[0]);
+
+    return formattedWin;
   }
 
   return false;
@@ -393,16 +405,21 @@ const getDiagonalWinSequence = ({ dimension, flatMove, moves, winLength }) => {
     }, []);
   };
 
-  const getWinningSequence = flatMoveSequence => {
+  const getWinningSequence = flatMoves => {
+    if (flatMoves.length < winLength ||
+      flatMoves.filter(fMove => fMove.move === moveType).length < winLength) {
+      return null;
+    }
+
     // get a list of all consecutive segments in the sequence
-    const moveSegments = flatMoveSequence.reduce((acc, fMove, i) => {
+    const moveSegments = flatMoves.reduce((acc, fMove, i) => {
       if (fMove.move === moveType) {
         // if we haven't started accumulating sequences yet
         if (acc.length === 0) {
           return [[fMove]];
         }
 
-        if (flatMoveSequence[i - 1].move === moveType) {
+        if (flatMoves[i - 1].move === moveType) {
           // if we have accumulated sequences and the last move matches as well
           // then add this move to the last sequence that was accumulated
           const updatedAcc = acc.slice();
@@ -444,22 +461,22 @@ const getDiagonalWinSequence = ({ dimension, flatMove, moves, winLength }) => {
   if (wins.length > 0) {
     const win = wins[0];
 
-    return unflattenMoves(win);
+    return win;
   }
 
   return null;
 };
 
 const flattenMoves = moves => {
-  const rowKeys = Object.keys(moves).map(Number);
+  const rowKeys = Object.keys(moves);
 
   return rowKeys.reduce((acc, rowKey) => {
     const row = moves[rowKey];
-    const colKeys = Object.keys(row).map(Number);
+    const colKeys = Object.keys(row);
     const colMoves = colKeys.reduce((cAcc, colKey) =>
       acc.concat({
-        rowKey,
-        colKey,
+        rowKey: Number(rowKey),
+        colKey: Number(colKey),
         move: row[colKey]
       })
       , []);
