@@ -249,7 +249,6 @@ const formatByColumn = moves => {
     acc.concat(Object.keys(col).map(Number))
     , []);
   const movesByColumn = Array.from(new Set(columnKeys))
-    .sort((a, b) => a - b)
     .reduce((acc, colKey) => ({
       ...acc,
       [colKey]: rowKeys.reduce((rAcc, rowKey) => {
@@ -298,6 +297,19 @@ const movesByType = row => Object.keys(row)
     };
   }, { x: [], o: [] });
 
+const getWinSequence = winLength => arr => {
+  return arr.sort((a, b) => a - b).reduce((acc, value, i) => {
+    const nextLenSeq = arr.slice(i, i + winLength);
+    const match = Array.from(Array(winLength).keys()).map(index => value + index);
+
+    if (arrayEquals(nextLenSeq, match)) {
+      return nextLenSeq;
+    }
+
+    return acc;
+  }, false);
+};
+
 const arrayEquals = (a, b) => {
   const aLen = a.length;
 
@@ -312,19 +324,6 @@ const arrayEquals = (a, b) => {
   }
 
   return true;
-};
-
-const getWinSequence = winLength => arr => {
-  return arr.reduce((acc, value, i) => {
-    const nextLenSeq = arr.slice(i, i + winLength);
-    const match = Array.from(Array(winLength).keys()).map(index => value + index);
-
-    if (arrayEquals(nextLenSeq, match)) {
-      return nextLenSeq;
-    }
-
-    return acc;
-  }, false);
 };
 
 const getDiagonalWin = ({ dimension, moves, winLength }) => {
